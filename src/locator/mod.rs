@@ -8,7 +8,7 @@ use crate::util;
 /// - Location: [`GeoLocation`] -> Location of the user
 pub async fn locate_via_ip(client : &reqwest::Client) -> GeoLocation {
     let url = "http://ip-api.com/json";
-    
+
     util::network::retrying_get(client, url)
         .await
         .json::<GeoLocation>()
