@@ -1,0 +1,11 @@
+[package]
+name = "weather"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.12.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0.217", features = ["derive"] }
+geolocator = "0.2.1"
+colored = "2.2.0"
