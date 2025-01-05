@@ -1,19 +1,26 @@
 use serde::Deserialize;
 use crate::util;
 
-/// Locates the user using their IP through the ip-api (free for non commercial)
-/// # Parameters
+/// Locates the system using either the IP or GPS-Module
+/// # Parameters:
+/// - locator : &[`std::str`] -> locator to be used
 /// - client : &[`reqwest::Client`] -> Internet client to be used
-/// # Returns
-/// - Location: [`GeoLocation`] -> Location of the user
-pub async fn locate_via_ip(client : &reqwest::Client) -> GeoLocation {
-    let url = "http://ip-api.com/json";
+/// # Returns:
+/// [`GeoLocation`] Geo location of the system in a standardized Format
+pub async fn locate(locator: &str, client: &reqwest::Client) -> GeoLocation {
+    let url = match locator {
+        "IP" => "http://ip-api.com/json",
+        "GPS" => todo!("Locator is not implemented yet!"),
+        _ => panic!("Unknown locator!")
+    };
 
-    util::network::retrying_get(client, url)
-        .await
-        .json::<GeoLocation>()
-        .await
-        .unwrap()
+    let response = util::network::retrying_get(client, url).await;
+
+    match locator {
+        "IP" => response.json::<GeoLocation>().await.unwrap(),
+        _ => panic!("Coudln't parse location data")
+    }
+
 }
 
 /// A simple location representation using latitude and longitude
