@@ -32,10 +32,11 @@ pub enum TemperatureUnit {
 
 impl TemperatureData {
     pub fn new(temperature: f32, unit: TemperatureUnit) -> Self {
-       Self {
+
+        Self {
            temperature,
            unit,
-       }
+        }
     }
 
     /// Converts the current temperature to a different one

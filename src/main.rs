@@ -1,25 +1,20 @@
-pub mod locator;
-pub mod util;
-mod temperature;
+mod cache;
+mod weather;
 
-use colored::Colorize;
-use tokio::runtime::Runtime;
+const CACHE_FILE_PATH: &str = "./cache.txt";
 
-const USE_LOCATOR: &str = "IP";
+
 fn main () {
-    let runtime = Runtime::new().unwrap();
-    let client = reqwest::Client::new();
+    // get cache
+    let mut cache = cache::Cache::open(CACHE_FILE_PATH);
+    // Read cache
+    cache.update_data();
+    // Check Reading
+    // println!("{}", cache.reading_was_success());
+    // if cache.reading_was_success() {
+    //
+    // }
+    // retrieve Data or generate Data
 
-
-    // let location = runtime.block_on(async {
-    //     locator::locate(USE_LOCATOR, &client).await
-    // });
-
-
-    let temperature = runtime.block_on(async {
-        let location = locator::locate(USE_LOCATOR, &client).await;
-        temperature::get_temperature(&location, &client).await
-    });
-
-    println!("{:?}", temperature);
 }
+
