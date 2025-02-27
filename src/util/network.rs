@@ -1,5 +1,4 @@
 use std::time::Duration;
-use colored::Colorize;
 use reqwest::{Client, Response};
 const RETRIES_TILL_FAILURE: u32 = 5;
 const TIME_BETWEEN_TRIES: f32 = 5.0f32;
@@ -10,7 +9,7 @@ const TIME_BETWEEN_TRIES: f32 = 5.0f32;
 /// - url &[`std::str`] -> Url to be harvested
 /// # Returns:
 /// - Response
-pub async fn retrying_get(client: &Client, url: &str) -> Response {
+pub async fn retrying_get(client: &Client, url: &str) -> Option<Response> {
     let sleep_time = Duration::from_secs_f32(TIME_BETWEEN_TRIES);
     let mut tries = 0;
 
@@ -19,7 +18,7 @@ pub async fn retrying_get(client: &Client, url: &str) -> Response {
        let response = client.get(url).send().await;
 
         if response.is_ok() {
-            return response.unwrap();
+            return Some(response.unwrap());
         }
 
         // Failure -> Wait and retry
@@ -27,5 +26,5 @@ pub async fn retrying_get(client: &Client, url: &str) -> Response {
         tokio::time::sleep(sleep_time).await;
     }
 
-    panic!("{} couldn't get data from the Internet ({})", "[Failure]".yellow(), url)
+    return None;
 }

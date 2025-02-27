@@ -2,17 +2,28 @@ use serde::Deserialize;
 
 /// JSON response format from open-meteo
 #[derive(Deserialize, Debug)]
-struct WeatherResponse {
-    current_units: UnitData,
-    current: CurrentData,
+pub struct MeteoWeatherResponse {
+    pub current_units: UnitData,
+    pub current: CurrentData,
 }
 
 #[derive(Deserialize, Debug)]
-struct CurrentData {
-    temperature_2m: Option<f32>,
+pub struct CurrentData {
+    pub temperature_2m: Option<f32>,
 }
 
 #[derive(Deserialize, Debug)]
-struct UnitData {
-    temperature_2m: Option<String>,
+pub struct UnitData {
+    pub temperature_2m: Option<String>,
 }
+
+
+// pub struct UniversalTemperatureData {
+//     temperature: f32,
+//     unit: TemperatureUnit,
+// }
+// pub enum TemperatureUnit {
+//     Celsius,
+//     Kelvin,
+//     Fahrenheit,
+// }
