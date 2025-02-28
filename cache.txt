@@ -1,1 +1,1 @@
-HalloWeltchen
+{"timestamp":1740708078,"data":{"temperature":3.2,"unit":"Celsius"}}

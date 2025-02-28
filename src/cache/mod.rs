@@ -1,16 +1,43 @@
+use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::time::{SystemTime, UNIX_EPOCH};
+use serde::{Deserialize, Serialize};
+use crate::weather::UniversalTemperatureData;
+
 const CACHE_BUFFER_SIZE: usize = 64;
 
 pub struct Cache {
     cache_file_path: String,
-    cache_reading: CacheReading,
+    data : Option<CachedWeather>
 }
 
-pub struct CacheReading {
-    read_size: Option<usize>,
-    buffer: [u8; CACHE_BUFFER_SIZE],
+#[derive(Serialize, Deserialize, Clone)]
+struct CachedWeather {
+    timestamp: u64, // unix time
+    data: UniversalTemperatureData,
 }
+impl CachedWeather {
+    pub fn new(data: &UniversalTemperatureData) -> Self {
+        Self {
+            timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            data: data.clone(),
+        }
+    }
+
+    pub fn has_expired(&self, max_age: u64) -> bool {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        now - self.timestamp > max_age
+    }
+}
+
 
 
 impl Cache {
@@ -18,83 +45,57 @@ impl Cache {
     pub fn new(file_path: &str) -> Self {
         Self {
             cache_file_path: String::from(file_path),
-            cache_reading: CacheReading::create_empty(),
+            data: None
         }
     }
 
-    /// Reads data from Cache-File to Cache
-    pub fn read_cache_file(&mut self) -> std::io::Result<()> {
-        let mut cache_file = self.open_cache(false, true, false)?;
-        let possible_read_size = cache_file.read(&mut self.cache_reading.buffer);
-        self.validate_reading(possible_read_size);
+    /// Writes data into the Cache file and saves it locally inside of the Cache Instance.
+    /// Returns Error if Data failed to be written
+    pub fn store_weather_data(&mut self, data: &UniversalTemperatureData) -> std::io::Result<()> {
+        let cache_entry = CachedWeather::new(data);
 
+        self.update_memory(cache_entry.clone());
+        self.save_to_file(&cache_entry)
+    }
+
+    /// Loads the Cached data from the Cache File.
+    /// Returns Error if file could not be Read
+    /// Returns None if Data was too old
+    pub fn load_weather_data(&self, max_age: u64) -> std::io::Result<Option<UniversalTemperatureData>> {
+        let contents = self.read_from_file()?;
+        let cached_data = Self::deserialize_cache(&contents)?;
+        Ok(Self::check_cache_validity(cached_data, max_age))
+    }
+
+    /// Returns the locally cached data only if it is still valid
+    pub fn retrieve_weather_data(&self, max_age: u64) -> Option<UniversalTemperatureData> {
+        Self::check_cache_validity(self.data.clone()?, max_age)
+    }
+
+    fn save_to_file(&self, cache_entry: &CachedWeather) -> std::io::Result<()> {
+        let json_data = serde_json::to_string(cache_entry)?;
+        fs::write(&self.cache_file_path, json_data)?;
         Ok(())
     }
 
-    /// Writes new data to Cache-File and Cache
-    pub fn write_data_to_cache(&mut self, data: &[u8]) -> std::io::Result<()> {
-        {
-            let mut cache_file = self.open_cache(true, false,true)?;
-
-            // Should only Fail on Access-right Issues
-            cache_file.write_all(data)?;
-
-        } // File not needed after this point
-
-        self.set_data_manually(data);
-
-        Ok(())
+    fn read_from_file(&self) -> std::io::Result<String> {
+        let mut cache_file = File::open(&self.cache_file_path)?;
+        let mut contents = String::new();
+        cache_file.read_to_string(&mut contents)?;
+        Ok(contents)
     }
 
-    fn set_data_manually(&mut self, data: &[u8]) {
-        self.cache_reading.read_size = Some(data.len());
-        self.cache_reading.buffer[..data.len()].copy_from_slice(data);
+    fn deserialize_cache(contents: &str) -> std::io::Result<CachedWeather> {
+        serde_json::from_str(contents).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
-    pub fn print_data(&self) {
-        match self.cache_reading.read_size {
-            Some(0) | None => eprintln!("Cache is empty"),
-            Some(size) => {
-                let output = String::from_utf8_lossy(&self.cache_reading.buffer[..size]);
-                println!("{}", output);
-            }
-        }
+    fn update_memory(&mut self, cache_entry: CachedWeather) {
+        self.data = Some(cache_entry);
     }
 
-    fn has_data(&self) -> bool {
-        self.cache_reading.read_size.unwrap_or(0) > 0
+    fn check_cache_validity(cached_data: CachedWeather, max_age: u64) -> Option<UniversalTemperatureData> {
+        if cached_data.has_expired(max_age) { return None; }
+        Some(cached_data.data)
     }
 
-    fn open_cache(&mut self, remove_old_data: bool, read: bool, write: bool) -> std::io::Result<File> {
-        // Should only Fail on Access-Right Issues
-        File::options()
-            .truncate(remove_old_data)
-            .read(read)
-            .write(write)
-            .open(self.cache_file_path.as_str())
-    }
-
-    /// Validates the reading from the Cache-File and updates the Status
-    fn update_reading_status(&mut self, possible_read_size: std::io::Result<usize>) {
-        match possible_read_size {
-            Ok(size) => {
-                println!("Read {} Bytes successfully from Cache-File", size);
-                self.cache_reading.read_size = Some(size);
-            },
-
-            Err(e) => {
-                eprintln!("Couldn't read data from Cache: {}", e);
-                self.cache_reading.read_size = None;
-            },
-        }
-    }
-}
-
-impl CacheReading {
-   pub fn create_empty() -> Self {
-       Self {
-           read_size: None,
-           buffer: [0; CACHE_BUFFER_SIZE],
-       }
-   }
 }
